@@ -53,11 +53,11 @@ class Movie < ApplicationRecord
      					puts @m.inspect
      					save_movie(@m)
      					sleep 1
-                        fetch_image_tmdb(@m)
+              fetch_image_tmdb(@m)
      				end
      			end
      		end
-		end
+		  end
     end
   end
 
@@ -89,6 +89,9 @@ class Movie < ApplicationRecord
       searchTitleWithPlus = searchTitle.gsub(/\s/, '+')
       y = movie.year
     end
+    tmdb_movie_id = get_tmdb_movie_id(searchTitle, searchTitleWithPlus, y)
+    puts tmdb_movie_id
+    sleep 20
     mov_poster = get_poster_path(searchTitle, searchTitleWithPlus, y)
     if mov_poster.nil?
       # shut the fuck up
@@ -97,7 +100,6 @@ class Movie < ApplicationRecord
     else
       movie.update(imageurl: mov_poster)
     end
-
     mov_poster = nil
     shortdescription = get_shortdescription(searchTitle, searchTitleWithPlus, y)
     movie.update(:shortdescription => shortdescription)
@@ -120,66 +122,67 @@ class Movie < ApplicationRecord
     return poster_path_url
   end
 
-    def self.get_shortdescription(queue, qu, y)
-      shortdescription = nil
-      tmdb_id = get_tmdb_movie_id(queue, qu, y)
-      tmdb_id.each do |movie_id|
-        m = get_rest_access_tmdb(movie_id)
-        if m['overview'].nil?
-          shortdescription = get_shortdescription_if_de_is_nil(queue, qu, y)
-        else
-          shortdescription = m['overview']
-        end
-      end
+  def self.get_shortdescription(queue, qu, y)
+    shortdescription = nil
+    tmdb_movie_id = get_tmdb_movie_id(queue, qu, y)
+    m = get_rest_access_tmdb(tmdb_movie_id)
+    if m['overview'].nil?
+      shortdescription = get_shortdescription_if_de_is_nil(queue, qu, y)
+    else
+      shortdescription = m['overview']
+    end
+    return shortdescription
+  end
+
+  def self.get_shortdescription_if_de_is_nil(queue, qu, y)
+    tmdb_movie_id = get_tmdb_movie_id(queue, qu, y)
+    tmdb_movie_id.each do |movie_id|
+      movie = RestClient.get("https://api.themoviedb.org/3/movie/#{movie_id}?language=en&api_key=#{TMDB_API_KEY}", TMDB_HEADERS)
+      m = ActiveSupport::JSON.decode(movie)
+      shortdescription = m['overview']
       return shortdescription
     end
+  end
 
-    def self.get_shortdescription_if_de_is_nil(queue, qu, y)
-      tmdb_movie_id = get_tmdb_movie_id(queue, qu, y)
-      tmdb_movie_id.each do |movie_id|
-        movie = RestClient.get("https://api.themoviedb.org/3/movie/#{movie_id}?language=en&api_key=#{TMDB_API_KEY}", TMDB_HEADERS)
-        m = ActiveSupport::JSON.decode(movie)
-        shortdescription = m['overview']
-        return shortdescription
-      end
-    end
+  private
 
-    def self.get_tmdb_movie_id(queue, qu, y)
-      uri = Addressable::URI.parse qu
-      uri = uri.normalize
-      puts "http://api.themoviedb.org/3/search/movie?query=#{uri}&api_key=#{TMDB_API_KEY}"
-      response = RestClient.get("http://api.themoviedb.org/3/search/movie?query=#{uri}&api_key=#{TMDB_API_KEY}", TMDB_HEADERS)
-      json = ActiveSupport::JSON.decode(response)
-      potential_id = []
-      json.each { |k, v|
-        v.each { |va|
-          original_title = va['original_title'].downcase
-          if va['release_date'] == nil
-            puts false
-          elsif va['release_date'] == ''
-            puts false
-          else
-            year = va['release_date'].to_date.strftime('%Y')
-            year = year.to_i
-          end
-          queue = queue.downcase
-          if original_title == queue && y == year
-            potential_id = potential_id << va['id']
-          elsif original_title == queue && year == y + 1
-            potential_id = potential_id << va['id']
-          elsif original_title == queue && year == y - 1
-            potential_id = potential_id << va['id']
-          else
-            puts false
-          end
-        } if v.is_a?(Array)
-      }
-      potential_id
-    end
+  def self.get_tmdb_movie_id(queue, qu, y)
+    uri = Addressable::URI.parse qu
+    uri = uri.normalize
+    puts "http://api.themoviedb.org/3/search/movie?query=#{uri}&api_key=#{TMDB_API_KEY}"
+    response = RestClient.get("http://api.themoviedb.org/3/search/movie?query=#{uri}&api_key=#{TMDB_API_KEY}", TMDB_HEADERS)
+    json = ActiveSupport::JSON.decode(response)
+    potential_id = nil
+    json.each { |k, v|
+      v.each { |va|
+        original_title = va['original_title'].downcase
+        if va['release_date'] == nil
+          puts false
+        elsif va['release_date'] == ''
+          puts false
+        else
+          year = va['release_date'].to_date.strftime('%Y')
+          year = year.to_i
+        end
+        queue = queue.downcase
+        if original_title == queue && y == year
+          # potential_id = potential_id << va['id']
+          potential_id = va['id']
+        elsif original_title == queue && year == y + 1
+          potential_id = va['id']
+        elsif original_title == queue && year == y - 1
+          potential_id = va['id']
+        else
+          puts false
+        end
+      } if v.is_a?(Array)
+    }
+    potential_id
+  end
 
-    def self.get_rest_access_tmdb(movie_id)
-      ActiveSupport::JSON.decode RestClient.get("https://api.themoviedb.org/3/movie/#{movie_id}?language=de&api_key=#{TMDB_API_KEY}", TMDB_HEADERS)
-    end
+  def self.get_rest_access_tmdb(movie_id)
+    ActiveSupport::JSON.decode RestClient.get("https://api.themoviedb.org/3/movie/#{movie_id}?language=de&api_key=#{TMDB_API_KEY}", TMDB_HEADERS)
+  end
 
 
 
