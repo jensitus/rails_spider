@@ -26,22 +26,17 @@ class Theater < ApplicationRecord
       results["result"].each do |r|
         puts r.inspect
         if r["parent"]["type"] == "cinema"
+          
           url = "https://www.skip.at/kino/" + r["parent"]["uri"].split('/')[3]
-          puts url
+
           page = Nokogiri::HTML(open(url, HEADERS_HASH))
           address = page.xpath('//div[@class="theater-header"]/div/div/div[1]/p/span[2]').text
           tel = page.xpath('//div[@class="theater-header"]/div/div/div[2]/p/a').text.gsub('-', ' ')
           web = page.xpath('//div[@class="theater-header"]/div/div/div[3]/p/a').text
-          puts "theater_header.methods"
-          puts address.inspect
-          puts tel.inspect
-          puts web.inspect
-          puts "-----------------"
+
           if r["parent"]["county"] == "Wien"
             name = r["parent"]["title"]
             _ID = "c-" + r["parent"]["title"].downcase.gsub(/\s/, '-').gsub('ä', 'ae').gsub('ö', 'oe').gsub('ü', 'ue').gsub('ñ', 'n').gsub('ß', 'ss').gsub('---', '-').delete("?!'.")
-            
-            # .css("p")[1].css("span")[2].text
             
             @theater = Theater.new(
             name: name, 
@@ -49,9 +44,12 @@ class Theater < ApplicationRecord
             typename: "theater",
             telephone: tel,
             address: address,
-            url: web
+            url: web,
+            skip_id: r["parent"]["id"]
             )
+
             t = Theater.find_by(_ID: _ID)
+
             if t.nil?
               if @theater.save
                 puts 'hell yeah'
@@ -68,4 +66,9 @@ class Theater < ApplicationRecord
       end
     end
   end
+
+  def self.get_all
+    Theater.all
+  end
+
 end

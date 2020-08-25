@@ -1,63 +1,87 @@
 # encoding: utf-8
 require 'open-uri'
+
 class Movie < ApplicationRecord
 
-    validates :_ID, presence: true
-    validates :_ID, uniqueness: true
+  validates :_ID, presence: true
+  validates :_ID, uniqueness: true
 
-	HEADERS_HASH = { 'User-Agent' => 'lets crawl'}
+  HEADERS_HASH = {'User-Agent' => 'lets crawl'}
 
-    TMDB_HEADERS = {:accept => 'application/json'}
-    TMDB_API_KEY = '933cdd7171c5106e4492577f3f008c5d'
+  TMDB_HEADERS = {:accept => 'application/json'}
+  TMDB_API_KEY = '933cdd7171c5106e4492577f3f008c5d'
 
-	logger = Rails.logger
+  logger = Rails.logger
 
-	def self.fetch_movies
-		da = Date.today
-    date = da.upto( da + 7  )
-   	date.each do |d|
-			response_zum_donner = RestClient::Request.new(
-				:method => :get,
-				:url => "https://efs.skip.at/api/v1/cfs/filmat/screenings/nested/movie/#{d}"
-			).execute
-			results = JSON.parse(response_zum_donner.to_str)
-     	results["result"].each do |r|
-     		if r["parent"]["type"] == "movie"
-     			r["nestedResults"].each do |nr|
-     				if nr["parent"]["county"] == "Wien"
-     					title = r["parent"]["title"].downcase.gsub(/\s/, '-').gsub('ä', 'ae').gsub('ö', 'oe').gsub('ü', 'ue').gsub('ñ', 'n').gsub('ß', 'ss').gsub('---', '-').delete("?!'.")
-     					detail_url = "https://www.skip.at/" + title
-     					page = Nokogiri::HTML(open(detail_url, HEADERS_HASH))
-     					propably_the_original = page.css('p[class="movieDetail-ovTitle"]').text
-     					country_year = page.css('p[class="movieDetail-country"]').text
-     					country_year.strip!
-     					year = country_year[-4,4]
-     					country = country_year.delete(year).strip
-     					c = remove_trailing_comma(country)
-     					# genres:
-     					genres = []
-     					r["parent"]["genres"].each do |g|
-     						genres << g
-     					end
-     					genres = genres.join(', ')
-     					_ID = 'm-' << title << '-' << year
-     					@m = Movie.new(
-     						title: r["parent"]["title"],
-     						_ID: _ID,
-     						land: c,
-     						year: year,
-     						typename: "movie",
-     						originaltitle: propably_the_original,
-     						genres: genres
-     						)
-     					puts @m.inspect
-     					save_movie(@m)
-     					sleep 1
-              fetch_image_tmdb(@m)
-     				end
-     			end
-     		end
-		  end
+  def self.fetch_movies
+    da = Date.today
+    # da = da + 5
+    date = da.upto(da + 7)
+    date.each do |d|
+      url = "https://efs.skip.at/api/v1/cfs/filmat/screenings/nested/movie/#{d}"
+      puts url
+      response_zum_donner = RestClient::Request.new(
+          :method => :get,
+          :url => url
+      ).execute
+      results = JSON.parse(response_zum_donner.to_str)
+      results["result"].each do |r|
+        if r["parent"]["type"] == "movie"
+          r["nestedResults"].each do |nr|
+            if nr["parent"]["county"] == "Wien"
+              title = r["parent"]["title"].downcase.gsub(/\s/, '-').gsub('ä', 'ae').gsub('ö', 'oe').gsub('ü', 'ue').gsub('ñ', 'n').gsub('–', '-').gsub('ß', 'ss').gsub('---', '-').delete("?!'.,:&/()").delete('"').gsub('--','-').gsub('é','e')
+              detail_url = "https://www.skip.at/" + title
+              detail_url = remove_trailing_hyphen(detail_url)
+              puts detail_url
+              begin
+                page = Nokogiri::HTML(URI.open(detail_url, HEADERS_HASH))
+                country_year = page.css('p[class="movieDetail-country"]').text
+                country_year.strip!
+                year = country_year[-4, 4]
+                propably_the_original = page.css('p[class="movieDetail-ovTitle"]').text
+                country = country_year.delete(year).strip
+                c = remove_trailing_comma(country)
+              rescue # NotFound => e
+                # puts e
+              end
+              unless year.nil?
+                _ID = 'm-' << title << '-' << year.to_s
+              else
+                _ID = 'm-' << title
+              end
+              @m = Movie.find_by(_ID: _ID)
+              if @m.nil?
+                # genres:
+                genres = []
+                unless r["parent"]["genres"].nil?
+                  r["parent"]["genres"].each do |g|
+                    genres << g
+                  end
+                end
+                genres = genres.join(', ')
+                @m = Movie.new(
+                    title: r["parent"]["title"],
+                    _ID: _ID,
+                    land: c,
+                    year: year,
+                    typename: "movie",
+                    originaltitle: propably_the_original,
+                    genres: genres
+                )
+                puts @m.inspect
+                save_movie(@m)
+                sleep 1
+                the_search_title_and_the_tmdb_id
+              elsif @m.tmdb_id.nil?
+                the_search_title_and_the_tmdb_id
+              else
+                # do nothing special
+              end
+              sleep 0.5
+            end
+          end
+        end
+      end
     end
   end
 
@@ -67,31 +91,35 @@ class Movie < ApplicationRecord
   end
 
   def self.save_movie(m)
-  	if m.save
-        puts 'success'
+    if m.save
+      puts 'success'
     else
-        puts 'oh no'
+      puts 'oh no'
     end
-  	sleep 2
+    sleep 2
   end
 
-  def self.fetch_image_tmdb(movie)
-    if movie.originaltitle.nil?
-      searchTitle = movie.title
-      searchTitleWithPlus = searchTitle.gsub(/\s/, '+')
-      y = movie.year
-    elsif movie.originaltitle == ''
-      searchTitle = movie.title
-      searchTitleWithPlus = searchTitle.gsub(/\s/, '+')
-      y = movie.year
+  def self.get_search_title(movie)
+    if movie.originaltitle.nil? || movie.originaltitle == ''
+      movie.title
     else
-      searchTitle = movie.originaltitle
-      searchTitleWithPlus = searchTitle.gsub(/\s/, '+')
-      y = movie.year
+      movie.originaltitle
     end
+  end
+
+  def self.get_search_title_with_plus(movie)
+    if movie.originaltitle.nil? || movie.originaltitle == ''
+      movie.title.gsub(/\s/, '+').gsub('–', '')
+    else
+      movie.originaltitle.gsub(/\s/, '+').gsub('–', '')
+    end
+  end
+
+  def self.fetch_image_tmdb(searchTitle, searchTitleWithPlus, movie)
+    y = movie.year
     tmdb_movie_id = get_tmdb_movie_id(searchTitle, searchTitleWithPlus, y)
     puts tmdb_movie_id
-    sleep 20
+    sleep 2
     mov_poster = get_poster_path(searchTitle, searchTitleWithPlus, y)
     if mov_poster.nil?
       # shut the fuck up
@@ -109,17 +137,15 @@ class Movie < ApplicationRecord
   def self.get_poster_path(searchTitle, searchTitleWithPlus, y)
     poster_path_url = nil
     tmdb_id = get_tmdb_movie_id(searchTitle, searchTitleWithPlus, y)
-    tmdb_id.each do |movie_id|
-      m = get_rest_access_tmdb(movie_id)
-      year = m['release_date'].to_date.strftime('%Y')
-      if m['poster_path'].nil?
-        return nil
-      else
-        ppu = m['poster_path']
-        poster_path_url = "https://image.tmdb.org/t/p/w185#{ppu}"
-      end
+    m = get_rest_access_tmdb(tmdb_id)
+    year = m['release_date'].to_date.strftime('%Y')
+    if m['poster_path'].nil?
+      return nil
+    else
+      ppu = m['poster_path']
+      poster_path_url = "https://image.tmdb.org/t/p/w185#{ppu}"
     end
-    return poster_path_url
+    poster_path_url
   end
 
   def self.get_shortdescription(queue, qu, y)
@@ -131,7 +157,7 @@ class Movie < ApplicationRecord
     else
       shortdescription = m['overview']
     end
-    return shortdescription
+    shortdescription
   end
 
   def self.get_shortdescription_if_de_is_nil(queue, qu, y)
@@ -145,6 +171,22 @@ class Movie < ApplicationRecord
   end
 
   private
+
+  def self.remove_trailing_hyphen(str)
+    return_str = str.nil? ? nil : str.chomp("-")
+    return_str
+  end
+
+  def self.the_search_title_and_the_tmdb_id
+    searchTitle = get_search_title(@m)
+    searchTitleWithPlus = get_search_title_with_plus(@m)
+    tmdb_id = get_tmdb_movie_id(searchTitle, searchTitleWithPlus, @m.year)
+    @m.update(tmdb_id: tmdb_id)
+    if @m.tmdb_id?
+      fetch_image_tmdb(searchTitle, searchTitleWithPlus, @m)
+    end
+  end
+
 
   def self.get_tmdb_movie_id(queue, qu, y)
     uri = Addressable::URI.parse qu
@@ -164,6 +206,12 @@ class Movie < ApplicationRecord
           year = va['release_date'].to_date.strftime('%Y')
           year = year.to_i
         end
+        puts '......'
+        puts y.inspect
+        puts y.class
+        puts year.inspect
+        puts '......'
+        y = y.to_i
         queue = queue.downcase
         if original_title == queue && y == year
           # potential_id = potential_id << va['id']
@@ -181,9 +229,10 @@ class Movie < ApplicationRecord
   end
 
   def self.get_rest_access_tmdb(movie_id)
-    ActiveSupport::JSON.decode RestClient.get("https://api.themoviedb.org/3/movie/#{movie_id}?language=de&api_key=#{TMDB_API_KEY}", TMDB_HEADERS)
+    r = RestClient.get("https://api.themoviedb.org/3/movie/#{movie_id}?language=de&api_key=#{TMDB_API_KEY}", TMDB_HEADERS)
+    puts r.inspect
+    ActiveSupport::JSON.decode r
   end
-
 
 
 end
