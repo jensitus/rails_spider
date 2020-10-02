@@ -6,6 +6,9 @@ class Movie < ApplicationRecord
   validates :_ID, presence: true
   validates :_ID, uniqueness: true
 
+  has_many :schedules
+  has_many :theaters, through: :schedules
+
   HEADERS_HASH = {'User-Agent' => 'lets crawl'}
 
   TMDB_HEADERS = {:accept => 'application/json'}
@@ -29,7 +32,7 @@ class Movie < ApplicationRecord
         if r["parent"]["type"] == "movie"
           r["nestedResults"].each do |nr|
             if nr["parent"]["county"] == "Wien"
-              title = r["parent"]["title"].downcase.gsub(/\s/, '-').gsub('ä', 'ae').gsub('ö', 'oe').gsub('ü', 'ue').gsub('ñ', 'n').gsub('–', '-').gsub('ß', 'ss').gsub('---', '-').delete("?!'.,:&/()").delete('"').gsub('--','-').gsub('é','e')
+              title = r["parent"]["title"].downcase.gsub(/\s/, '-').gsub('ä', 'ae').gsub('ö', 'oe').gsub('ü', 'ue').gsub('ñ', 'n').gsub('–', '-').gsub('ß', 'ss').gsub('---', '-').delete("?!'.,:&/()#").delete('"').gsub('--', '-').gsub('é', 'e')
               detail_url = "https://www.skip.at/" + title
               detail_url = remove_trailing_hyphen(detail_url)
               puts detail_url
@@ -101,17 +104,17 @@ class Movie < ApplicationRecord
 
   def self.get_search_title(movie)
     if movie.originaltitle.nil? || movie.originaltitle == ''
-      movie.title
+      movie.title.delete('#')
     else
-      movie.originaltitle
+      movie.originaltitle.delete('#')
     end
   end
 
   def self.get_search_title_with_plus(movie)
     if movie.originaltitle.nil? || movie.originaltitle == ''
-      movie.title.gsub(/\s/, '+').gsub('–', '')
+      movie.title.gsub(/\s/, '+').gsub('–', '').delete('#')
     else
-      movie.originaltitle.gsub(/\s/, '+').gsub('–', '')
+      movie.originaltitle.gsub(/\s/, '+').gsub('–', '').delete('#')
     end
   end
 
@@ -163,7 +166,12 @@ class Movie < ApplicationRecord
   def self.get_shortdescription_if_de_is_nil(queue, qu, y)
     tmdb_movie_id = get_tmdb_movie_id(queue, qu, y)
     tmdb_movie_id.each do |movie_id|
-      movie = RestClient.get("https://api.themoviedb.org/3/movie/#{movie_id}?language=en&api_key=#{TMDB_API_KEY}", TMDB_HEADERS)
+      begin
+        movie = RestClient.get("https://api.themoviedb.org/3/movie/#{movie_id}?language=en&api_key=#{TMDB_API_KEY}", TMDB_HEADERS)
+      rescue => e
+        puts 'rescue that shit'
+        puts e
+      end
       m = ActiveSupport::JSON.decode(movie)
       shortdescription = m['overview']
       return shortdescription

@@ -2,6 +2,9 @@ class Schedule < ApplicationRecord
   validates :_ID, presence: true
   validates :_ID, uniqueness: true
 
+  belongs_to :movie
+  belongs_to :theater
+
   BASE_URL = "https://efs.skip.at/api/v1/cfs/filmat/screenings/flat/cinema/"
 
   HEADERS_HASH = {'User Agent' => 'Save The Date'}
@@ -12,6 +15,7 @@ class Schedule < ApplicationRecord
     date = date.upto(date + 7)
 
     Theater.get_all().each do |t|
+      puts '++++ this ++++ is ++++ the ++++ beginning ------'
       puts t.name
       puts t.name.downcase.gsub(/\s/, '-')
 
@@ -31,13 +35,17 @@ class Schedule < ApplicationRecord
             # do nothin
           else
             if r["parent"]["type"] == "movie"
+              puts ' r r r r r '
               puts r["parent"]["title"]
               puts r["screenings"][0]["time"]
+              puts ' r r r r r '
               time = r["screenings"][0]["time"].to_datetime
               puts time.inspect
               puts time.class
               # movie_title = r["parent"]["title"].downcase.gsub(/\s/, '-').gsub('ä', 'ae').gsub('ö', 'oe').gsub('ü', 'ue').gsub('ñ', 'n').gsub('ß', 'ss').gsub('---', '-').delete("?!'.")
               m = Movie.find_by(title: r["parent"]["title"])
+              puts ' m m m m'
+              puts m.inspect
               if m.nil?
                 movie_title = r["parent"]["title"].split(' ')
                 movie_title = movie_title[0] + ' ' + movie_title[1]
@@ -46,28 +54,33 @@ class Schedule < ApplicationRecord
                   m = m[0]
                 end
               end
-              unless m.nil?
-                puts 'm.inspect'
-                puts m._ID
-                puts t._ID
-                _ID = "s-" + t._ID + m._ID + time.to_s
-                @schedule = Schedule.new(
-                    _ID: _ID,
-                    time: time,
-                    theater_ID: t._ID,
-                    movie_ID: m._ID,
-                    typename: "schedule"
-                )
-                if @schedule.save
-                  puts "absolutely yes"
-                else
-                  puts "this is the real shit"
+              puts m.class
+              sleep 0.1
+              if m.class == Movie
+                unless m.nil?
+                  puts 'm.inspect'
+                  puts m.inspect
+                  puts m._ID
+                  puts t._ID
+                  _ID = "s-" + t._ID + m._ID + time.to_s
+                  @schedule = Schedule.new(
+                      _ID: _ID,
+                      time: time,
+                      theater_id: t.id,
+                      movie_id: m.id,
+                      typename: "schedule"
+                  )
+                  if @schedule.save
+                    puts "absolutely yes"
+                  else
+                    puts "this is the real shit"
+                  end
                 end
               end
             end
           end
         end
-        sleep 3
+        sleep 1
       end
 
     end

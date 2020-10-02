@@ -12,6 +12,9 @@ class Theater < ApplicationRecord
 	validates :_ID, presence: true
 	validates :_ID, uniqueness: true
 
+  has_many :schedules
+  has_many :movies, through: :schedules
+
   HEADERS_HASH = { 'User-Agent' => 'lets crawl'}
 
   def self.get_theaters
@@ -26,7 +29,7 @@ class Theater < ApplicationRecord
       results["result"].each do |r|
         puts r.inspect
         if r["parent"]["type"] == "cinema"
-          
+
           url = "https://www.skip.at/kino/" + r["parent"]["uri"].split('/')[3]
 
           page = Nokogiri::HTML(open(url, HEADERS_HASH))
@@ -37,9 +40,9 @@ class Theater < ApplicationRecord
           if r["parent"]["county"] == "Wien"
             name = r["parent"]["title"]
             _ID = "c-" + r["parent"]["title"].downcase.gsub(/\s/, '-').gsub('ä', 'ae').gsub('ö', 'oe').gsub('ü', 'ue').gsub('ñ', 'n').gsub('ß', 'ss').gsub('---', '-').delete("?!'.")
-            
+
             @theater = Theater.new(
-            name: name, 
+            name: name,
             _ID: _ID,
             typename: "theater",
             telephone: tel,

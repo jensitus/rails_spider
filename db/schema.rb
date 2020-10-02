@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2020_08_24_120323) do
+ActiveRecord::Schema.define(version: 2020_09_19_220059) do
 
   create_table "movies", force: :cascade do |t|
     t.string "title"
@@ -28,19 +28,20 @@ ActiveRecord::Schema.define(version: 2020_08_24_120323) do
     t.datetime "updated_at", precision: 6, null: false
     t.string "genres"
     t.boolean "complete"
+    t.bigint "movie_id"
   end
 
   create_table "schedules", force: :cascade do |t|
     t.string "_ID"
     t.datetime "time"
-    t.string "theater_ID"
-    t.string "movie_ID"
     t.string "typename"
     t.boolean "dreid"
     t.boolean "ov"
     t.string "info"
     t.datetime "created_at", precision: 6, null: false
     t.datetime "updated_at", precision: 6, null: false
+    t.bigint "theater_id"
+    t.bigint "movie_id"
   end
 
   create_table "theaters", force: :cascade do |t|
