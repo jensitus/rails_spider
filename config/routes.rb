@@ -5,5 +5,7 @@ Rails.application.routes.draw do
 
   get '/theaters/', to: 'theater#list'
   get '/theaters/:id', to: 'theater#show'
+  get '/theaters/:id/schedules', to: 'theater#theater_schedules'
+  get '/theaters/:id/schedules/movies', to: 'theater#and_the_movies'
 
 end

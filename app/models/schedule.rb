@@ -86,4 +86,8 @@ class Schedule < ApplicationRecord
     end
   end
 
+  def get_schedule_for_theater_and_movie(theater_id, movie_id)
+    where(theater_id: theater_id, movie_id: movie_id)
+  end
+
 end

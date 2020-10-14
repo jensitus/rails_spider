@@ -1,6 +1,7 @@
 class MovieDto
 
-  def initialize(title, originaltitle, shortdescription, runtime, genres)
+  def initialize(id, title, originaltitle, shortdescription, runtime, genres)
+    @id = id
     @title = title
     @originaltitle = originaltitle
     @shortdescription = shortdescription
