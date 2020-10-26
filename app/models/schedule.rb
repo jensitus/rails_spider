@@ -16,9 +16,7 @@ class Schedule < ApplicationRecord
 
     Theater.get_all().each do |t|
       puts '++++ this ++++ is ++++ the ++++ beginning ------'
-      puts t.name
       puts t.name.downcase.gsub(/\s/, '-')
-
 
       detail_url = BASE_URL + t.skip_id + "/"
 
@@ -35,17 +33,9 @@ class Schedule < ApplicationRecord
             # do nothin
           else
             if r["parent"]["type"] == "movie"
-              puts ' r r r r r '
-              puts r["parent"]["title"]
-              puts r["screenings"][0]["time"]
-              puts ' r r r r r '
               time = r["screenings"][0]["time"].to_datetime
-              puts time.inspect
-              puts time.class
-              # movie_title = r["parent"]["title"].downcase.gsub(/\s/, '-').gsub('ä', 'ae').gsub('ö', 'oe').gsub('ü', 'ue').gsub('ñ', 'n').gsub('ß', 'ss').gsub('---', '-').delete("?!'.")
               m = Movie.find_by(title: r["parent"]["title"])
-              puts ' m m m m'
-              puts m.inspect
+              # puts m.inspect
               if m.nil?
                 movie_title = r["parent"]["title"].split(' ')
                 movie_title = movie_title[0] + ' ' + movie_title[1]
@@ -54,14 +44,9 @@ class Schedule < ApplicationRecord
                   m = m[0]
                 end
               end
-              puts m.class
               sleep 0.1
               if m.class == Movie
                 unless m.nil?
-                  puts 'm.inspect'
-                  puts m.inspect
-                  puts m._ID
-                  puts t._ID
                   _ID = "s-" + t._ID + m._ID + time.to_s
                   @schedule = Schedule.new(
                       _ID: _ID,
@@ -70,6 +55,7 @@ class Schedule < ApplicationRecord
                       movie_id: m.id,
                       typename: "schedule"
                   )
+                  puts @schedule.inspect
                   if @schedule.save
                     puts "absolutely yes"
                   else
@@ -80,7 +66,7 @@ class Schedule < ApplicationRecord
             end
           end
         end
-        sleep 1
+        sleep 0.1
       end
 
     end
@@ -88,6 +74,13 @@ class Schedule < ApplicationRecord
 
   def get_schedule_for_theater_and_movie(theater_id, movie_id)
     where(theater_id: theater_id, movie_id: movie_id)
+  end
+
+  def self.delete_schedules
+    t = Time.now
+    Schedule.where(["time < ?", t]).each do |s|
+      s.destroy
+    end
   end
 
 end

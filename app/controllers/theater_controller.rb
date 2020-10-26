@@ -1,6 +1,6 @@
 class TheaterController < ApplicationController
 
-  before_action :set_theater, only: [:show]
+  before_action :set_theater, only: [:show, :the_movies]
   before_action :set_theater_schedules, only: [:theater_schedules, :and_the_movies]
 
   def list
@@ -21,15 +21,19 @@ class TheaterController < ApplicationController
   end
 
   def theater_schedules
-    puts @theater_schedules.inspect
     json_response(@theater_schedules)
   end
 
-  def and_the_movies
-    @and_the_movies = @theater_schedules.collect do |timeslot, schedule|
-      [timeslot, Hash[schedule.group_by {|s| s.movie}]]
-    end
-    json_response(@and_the_movies)
+  # def and_the_movies
+  #   @and_the_movies = @theater_schedules.collect do |timeslot, schedule|
+  #     [timeslot, Hash[schedule.group_by {|s| s.movie}]]
+  #   end
+  #   json_response(@and_the_movies)
+  # end
+
+  def the_movies
+    puts @theater
+    json_response(@theater.movies)
   end
 
   private
@@ -40,7 +44,9 @@ class TheaterController < ApplicationController
 
   def set_theater_schedules
     @theater = Theater.find(params[:id])
-    @theater_schedules = @theater.schedules.group_by{|schedule| Time.at(schedule.time).strftime('%d.%m.')}
+    @theater_schedules = @theater.schedules
+                             .group_by {|schedule| Time.at(schedule.time).strftime('%d.%m.')}
+                             .collect {|timeslot, schedule| [timeslot, Hash[schedule.group_by {|s| s.movie.title}]]}
   end
 
   def old_code

@@ -64,7 +64,7 @@ class Theater < ApplicationRecord
           puts name
           puts _ID
 
-          sleep 2
+          sleep 0.5
         end
       end
     end

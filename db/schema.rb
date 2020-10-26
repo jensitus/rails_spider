@@ -29,6 +29,7 @@ ActiveRecord::Schema.define(version: 2020_09_19_220059) do
     t.string "genres"
     t.boolean "complete"
     t.bigint "movie_id"
+    t.index ["_ID"], name: "index_movies_on__ID", unique: true
   end
 
   create_table "schedules", force: :cascade do |t|

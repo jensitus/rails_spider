@@ -73,14 +73,13 @@ class Movie < ApplicationRecord
                 )
                 puts @m.inspect
                 save_movie(@m)
-                sleep 1
+                sleep 0.3
                 the_search_title_and_the_tmdb_id
               elsif @m.tmdb_id.nil?
                 the_search_title_and_the_tmdb_id
               else
                 # do nothing special
               end
-              sleep 0.5
             end
           end
         end
@@ -99,7 +98,7 @@ class Movie < ApplicationRecord
     else
       puts 'oh no'
     end
-    sleep 2
+    sleep 0.1
   end
 
   def self.get_search_title(movie)
@@ -122,7 +121,7 @@ class Movie < ApplicationRecord
     y = movie.year
     tmdb_movie_id = get_tmdb_movie_id(searchTitle, searchTitleWithPlus, y)
     puts tmdb_movie_id
-    sleep 2
+    sleep 0.1
     mov_poster = get_poster_path(searchTitle, searchTitleWithPlus, y)
     if mov_poster.nil?
       # shut the fuck up

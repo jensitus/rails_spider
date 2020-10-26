@@ -37,5 +37,8 @@ module RailsSpider
     # logging
     # config.logger = Logger.new(STDOUT)
     # config.logger = Log4r::Logger.new("Application Log")
+
+    config.time_zone = 'Europe/Vienna'
+
   end
 end
